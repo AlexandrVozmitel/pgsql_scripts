@@ -1,0 +1,241 @@
+#!/bin/bash
+
+#==============================================================================
+#title          : PostgreSQL DataBase Backup
+#description    :
+#author         :AlexandrVozmitel
+#link           :
+#date           :20181015
+#version        :0.0.4
+#usage          :script/pgsql_backup
+#notes          :
+#==============================================================================
+
+
+SCRIPTNAME=`basename $0`;
+DIR=$(dirname "$(readlink -e "$0")");
+CONF_FILE="$DIR/config/pgsql.conf";
+
+######################################
+
+# load config
+if [ ! -f "$CONF_FILE" ]; then
+	echo "The config does not exist \`$CONF_FILE\`"
+	exit 1;
+else
+	source $CONF_FILE;
+fi
+
+######################################
+
+
+
+######################################
+
+PG_OPTIONS='';
+[ ! -z "$PG_HOST" ] && PG_OPTIONS=$PG_OPTIONS" -h$PG_HOST";
+[ ! -z "$PG_USER" ] && PG_OPTIONS=$PG_OPTIONS" -U$PG_USER";
+
+######################################
+
+function sendEmail()
+{
+	D_SUBJECT=$(echo $1 | sed 's|\/|\\/|g' | sed 's|\t|      |g');
+	D_BODY=$(echo $2 | sed 's|\/|\\/|g' | sed 's|\t|      |g');
+	for i in ${!NOTIFICATION_EMAIL_TO[@]}; do
+		RCPT="$RCPT --mail-rcpt \"${NOTIFICATION_EMAIL_TO[$i]}\"";
+		if [ -z "$EMAIL_TO" ]; then
+			EMAIL_TO="<${NOTIFICATION_EMAIL_TO[$i]}>"
+		else
+			EMAIL_TO="$EMAIL_TO, <${NOTIFICATION_EMAIL_TO[$i]}>"
+		fi
+	done
+
+	rm -f /tmp/tmpmail;
+	echo -e "From: \"$HOSTNAME\" <$NOTIFICATION_EMAIL_FROM>\nTo: $EMAIL_TO\nSubject: $D_SUBJECT\nMIME-Version: 1.0\nContent-Type: text/plain;charset=utf-8\n\n$D_BODY" > /tmp/tmpmail;
+	curl --url "$NOTIFICATION_EMAIL_SMTP" --ssl-reqd --mail-from "$NOTIFICATION_EMAIL_FROM" $RCPT --upload-file /tmp/tmpmail --user "$NOTIFICATION_EMAIL_USER:$NOTIFICATION_EMAIL_PASS" --insecure --output /dev/null;
+}
+
+function as_user() {
+	if [ "`whoami`" = "$RUN_USERNAME" ] ; then
+		bash -c "$1"
+	else
+		su - "$RUN_USERNAME" -s /bin/bash -c "$@"
+	fi
+}
+
+
+function perform_backups_all()
+{
+	SUFFIX="-all"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
+	RESULT=""
+
+	echo -e "\n\n\n`date '+%Y-%m-%d %H:%M:%S'`"
+	echo "Making backup directory in $FINAL_BACKUP_DIR"
+
+	if ! as_user "mkdir -p $FINAL_BACKUP_DIR"; then
+		echo "Cannot create backup directory in $FINAL_BACKUP_DIR. Go and fix it!" 1>&2
+		exit 1;
+	fi;
+
+	FULL_BACKUP_QUERY="select datname from pg_database where not datistemplate and datallowconn and datname != 'postgres' order by datname desc;"
+
+	echo -e "\n\nPerforming full backups"
+	echo -e "\n------------------------------------------------\n"
+
+	for DATABASE in `as_user "psql $PG_OPTIONS -At -c \"$FULL_BACKUP_QUERY\""`
+	do
+		echo -e "[`date '+%Y-%m-%d %H:%M:%S'`] Performing backup $DATABASE"
+		if ! as_user "pg_dump $PG_OPTIONS -Fc -b -f $FINAL_BACKUP_DIR\"$DATABASE\".sql.dump.in_progress \"$DATABASE\""; then
+			echo "[!!ERROR!!] Failed backup database \`$DATABASE\`" 1>&2 && rm -fr $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress
+			RESULT="{$RESULT}\nFailed backup database \`$DATABASE\`";
+		else
+			mv $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress $FINAL_BACKUP_DIR"$DATABASE".sql.dump;
+			SIZE=`cd $FINAL_BACKUP_DIR && du -sh "$DATABASE".sql.dump`;
+			RESULT="$RESULT\nSuccessfully created backup database \`$DATABASE\`\n\t$SIZE";
+			echo -e "[`date '+%Y-%m-%d %H:%M:%S'`] \tbackup successfully\n"
+		fi
+	done
+
+	ENDTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`";
+	RESULT="${STARTTIME} - ${ENDTTIME}\n$RESULT\n";
+
+	echo -e "\n------------------------------------------------\n"
+
+
+	[ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] && rm -fr ${FINAL_BACKUP_DIR};
+
+	if [ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] ; then
+		echo -e "\nDataBase backups error" 1>&2;
+	else
+		echo -e "\nAll database backups complete!";
+	fi
+
+	if [ "$IS_NOTIFICATION_EMAIL_ALL" == true ]; then
+		sendEmail "Backup Information $HOSTNAME" "$RESULT";
+	fi
+}
+
+function perform_backups_list()
+{
+	SUFFIX="-list"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
+	RESULT=""
+
+	echo -e "\n\n\n`date '+%Y-%m-%d %H:%M:%S'`"
+	echo "Making backup directory in $FINAL_BACKUP_DIR"
+
+	if ! as_user "mkdir -p $FINAL_BACKUP_DIR"; then
+		echo "Cannot create backup directory in $FINAL_BACKUP_DIR. Go and fix it!" 1>&2;
+		exit 1;
+	fi;
+
+	echo -e "\n------------------------------------------------\n\n";
+
+	for DATABASE in $LIST_DATABASE
+	do
+		echo -e "[`date '+%Y-%m-%d %H:%M:%S'`] Performing backup $DATABASE"
+		if ! as_user "pg_dump $PG_OPTIONS -Fc -b -f $FINAL_BACKUP_DIR\"$DATABASE\".sql.dump.in_progress \"$DATABASE\""; then
+			echo "[!!ERROR!!] Failed backup database \`$DATABASE\`" 1>&2 && rm -fr $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress
+			RESULT="{$RESULT}\nFailed backup database \`$DATABASE\`";
+		else
+			mv $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress $FINAL_BACKUP_DIR"$DATABASE".sql.dump;
+			SIZE=`cd $FINAL_BACKUP_DIR && du -sh "$DATABASE".sql.dump`;
+			RESULT="$RESULT\nSuccessfully created backup database \`$DATABASE\`\n\t$SIZE";
+			echo -e "[`date '+%Y-%m-%d %H:%M:%S'`] \tbackup successfully\n"
+		fi
+	done
+
+	ENDTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`";
+	RESULT="${STARTTIME} - ${ENDTTIME}\n$RESULT\n";
+
+	echo -e "\n------------------------------------------------\n"
+
+	[ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] && rm -fr ${FINAL_BACKUP_DIR};
+
+	if [ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] ; then
+		echo -e "\nDataBase backups error" 1>&2;
+	else
+		echo -e "\nDatabase backups complete!";
+	fi
+
+	if [ "$IS_NOTIFICATION_EMAIL_LIST" == true ]; then
+		sendEmail "Backup Information $HOSTNAME" "$RESULT";
+	fi
+}
+
+function perform_backups_one()
+{
+	DATABASE=$1
+	SUFFIX="-database"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
+	RESULT=""
+
+	echo -e "\n\n\n`date '+%Y-%m-%d %H:%M:%S'`"
+	echo "Making backup directory in $FINAL_BACKUP_DIR"
+
+	if ! as_user "mkdir -p $FINAL_BACKUP_DIR"; then
+		echo "Cannot create backup directory in $FINAL_BACKUP_DIR. Go and fix it!" 1>&2
+		exit 1;
+	fi;
+
+	echo -e "\n------------------------------------------------\n"
+
+		echo -e "[`date '+%Y-%m-%d %H:%M:%S'`] Performing backup $DATABASE"
+		if ! as_user "pg_dump $PG_OPTIONS -Fc -b -f $FINAL_BACKUP_DIR\"$DATABASE\".sql.dump.in_progress \"$DATABASE\""; then
+			echo "[!!ERROR!!] Failed backup database \`$DATABASE\`" 1>&2 && rm -fr $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress
+			RESULT="{$RESULT}\nFailed backup database \`$DATABASE\`";
+		else
+			mv $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress $FINAL_BACKUP_DIR"$DATABASE".sql.dump;
+			SIZE=`cd $FINAL_BACKUP_DIR && du -sh "$DATABASE".sql.dump`;
+			RESULT="$RESULT\nSuccessfully created backup database \`$DATABASE\`\n\t$SIZE";
+			echo -e "[`date '+%Y-%m-%d %H:%M:%S'`] \tbackup successfully\n"
+		fi
+
+	ENDTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`";
+	RESULT="${STARTTIME} - ${ENDTTIME}\n$RESULT\n";
+
+	[ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] && rm -fr ${FINAL_BACKUP_DIR};
+
+	echo -e "\n------------------------------------------------\n"
+
+	if [ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] ; then
+		echo -e "\nDataBase backups error" 1>&2;
+	else
+		echo -e "\nDatabase backups complete!";
+	fi
+
+	if [ "$IS_NOTIFICATION_EMAIL_DB" == true ]; then
+		sendEmail "Backup Information $HOSTNAME" "$RESULT";
+	fi;
+}
+
+
+
+case "$1" in
+	all)
+		perform_backups_all
+	;;
+	list)
+		perform_backups_list
+	;;
+	db)
+		if [ $# -gt 1 ] ; then
+			if [ ! `as_user "psql $PG_OPTIONS -At -c \"select datname from pg_database where datname != 'postgres' and datname = '$2';\""` ];
+			then
+				echo "Database \`$2\` does not exist" 1>&2 && exit 1
+			else
+				perform_backups_one $2
+			fi
+		else
+			echo "select the database"
+		fi
+	;;
+	*)
+	echo $"Usage: $0 {all|db 'database name'}"
+	exit 2
+esac
