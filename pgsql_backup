@@ -40,10 +40,18 @@ PG_OPTIONS='';
 
 function sendEmail()
 {
-	D_SUBJECT=$(echo $1 | sed 's|\/|\\/|g' | sed 's|\t|      |g');
+	if [ -z "$NOTIFICATION_EMAIL_SUBJECT" ]; then
+		D_SUBJECT=$(echo $1 | sed 's|\/|\\/|g' | sed 's|\t|      |g');
+	else
+		D_SUBJECT="$NOTIFICATION_EMAIL_SUBJECT";
+	fi
 	D_BODY=$(echo $2 | sed 's|\/|\\/|g' | sed 's|\t|      |g');
 	for i in ${!NOTIFICATION_EMAIL_TO[@]}; do
-		RCPT="$RCPT --mail-rcpt \"${NOTIFICATION_EMAIL_TO[$i]}\"";
+		if [ -z "$RCPT" ]; then
+			RCPT="--mail-rcpt ${NOTIFICATION_EMAIL_TO[$i]}";
+		else
+			RCPT="$RCPT --mail-rcpt ${NOTIFICATION_EMAIL_TO[$i]}";
+		fi
 		if [ -z "$EMAIL_TO" ]; then
 			EMAIL_TO="<${NOTIFICATION_EMAIL_TO[$i]}>"
 		else
@@ -53,7 +61,8 @@ function sendEmail()
 
 	rm -f /tmp/tmpmail;
 	echo -e "From: \"$HOSTNAME\" <$NOTIFICATION_EMAIL_FROM>\nTo: $EMAIL_TO\nSubject: $D_SUBJECT\nMIME-Version: 1.0\nContent-Type: text/plain;charset=utf-8\n\n$D_BODY" > /tmp/tmpmail;
-	curl --url "$NOTIFICATION_EMAIL_SMTP" --ssl-reqd --mail-from "$NOTIFICATION_EMAIL_FROM" $RCPT --upload-file /tmp/tmpmail --user "$NOTIFICATION_EMAIL_USER:$NOTIFICATION_EMAIL_PASS" --insecure --output /dev/null;
+	OPTIONS="--url $NOTIFICATION_EMAIL_SMTP --ssl-reqd --mail-from $NOTIFICATION_EMAIL_FROM $RCPT --upload-file /tmp/tmpmail --user $NOTIFICATION_EMAIL_USER:$NOTIFICATION_EMAIL_PASS --insecure -v"
+	`curl $OPTIONS`;
 }
 
 function as_user() {
@@ -68,7 +77,7 @@ function as_user() {
 function perform_backups_all()
 {
 	SUFFIX="-all"
-	FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
 
@@ -80,7 +89,7 @@ function perform_backups_all()
 		exit 1;
 	fi;
 
-	FULL_BACKUP_QUERY="select datname from pg_database where not datistemplate and datallowconn and datname != 'postgres' order by datname desc;"
+	FULL_BACKUP_QUERY="SELECT datname FROM pg_database WHERE not datistemplate AND datallowconn AND datname != 'postgres' ORDER BY datname ASC;"
 
 	echo -e "\n\nPerforming full backups"
 	echo -e "\n------------------------------------------------\n"
@@ -90,7 +99,7 @@ function perform_backups_all()
 		echo -e "[`date '+%Y-%m-%d %H:%M:%S'`] Performing backup $DATABASE"
 		if ! as_user "pg_dump $PG_OPTIONS -Fc -b -f $FINAL_BACKUP_DIR\"$DATABASE\".sql.dump.in_progress \"$DATABASE\""; then
 			echo "[!!ERROR!!] Failed backup database \`$DATABASE\`" 1>&2 && rm -fr $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress
-			RESULT="{$RESULT}\nFailed backup database \`$DATABASE\`";
+			RESULT="${RESULT}\nFailed backup database \`$DATABASE\`";
 		else
 			mv $FINAL_BACKUP_DIR"$DATABASE".sql.dump.in_progress $FINAL_BACKUP_DIR"$DATABASE".sql.dump;
 			SIZE=`cd $FINAL_BACKUP_DIR && du -sh "$DATABASE".sql.dump`;
@@ -121,7 +130,7 @@ function perform_backups_all()
 function perform_backups_list()
 {
 	SUFFIX="-list"
-	FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
 
@@ -171,7 +180,7 @@ function perform_backups_one()
 {
 	DATABASE=$1
 	SUFFIX="-database"
-	FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
 
