@@ -1,0 +1,136 @@
+#!/bin/bash
+
+#==============================================================================
+#title          : PostgreSQL DataBase restore
+#description    :
+#author         :AlexandrVozmitel
+#link           :
+#date           :20181015
+#version        :0.0.3 (20191012)
+#usage          :script/pgsql_restore
+#notes          :
+#==============================================================================
+
+
+SCRIPTNAME=`basename $0`;
+DIR=$(dirname "$(readlink -e "$0")");
+CONF_FILE="$DIR/config/pgsql.conf";
+
+
+################################################
+#               Initializations                #
+################################################
+
+# load config
+if [ ! -f "$CONF_FILE" ]; then
+	echo "The config does not exist \`$CONF_FILE\`"
+	exit 1;
+else
+	source $CONF_FILE;
+fi
+
+
+[ -z "$PG_OPTIONS" ] && PG_OPTIONS='';
+[ ! -z "$PG_HOST" ] && PG_OPTIONS=$PG_OPTIONS" -h$PG_HOST";
+[ ! -z "$PG_USER" ] && PG_OPTIONS=$PG_OPTIONS" -U$PG_USER";
+
+
+MAX_DATE_SELECTION_NUMBER=0
+DATETIME_DIR="";
+DB_NAME="";
+DB_RESTORE="";
+
+
+################################################
+
+function as_user() {
+	if [ "`whoami`" = "$RUN_USERNAME" ] ; then
+		bash -c "$1"
+	else
+		su - "$RUN_USERNAME" -s /bin/bash -c "$@"
+	fi
+}
+
+function runRestore()
+{
+	if [ as_user "as_user \"psql $PG_OPTIONS -At -c \"select datname from pg_database where datname != 'postgres' and datname = '$DB_RESTORE';\"\"" ]; then
+		as_user "dropdb $PG_OPTIONS $DB_RESTORE;";
+	fi
+	as_user "createdb $PG_OPTIONS $DB_RESTORE;";
+	as_user "pg_restore $PG_OPTIONS -v -j4 -d $DB_RESTORE $BACKUP_DIR/$DATETIME_DIR/$DB_NAME.sql.dump;";
+}
+
+function outDateSelection()
+{
+	echo -e "\nAvailable recovery dates:";
+	for i in ${!LISTDATEDIR[@]}; do
+		key=$((i + 1));
+		echo -e "\t$key) ${LISTDATEDIR[$i]}";
+		MAX_DATE_SELECTION_NUMBER=$key;
+	done
+	echo "";
+}
+
+function waitingDateSelection()
+{
+	echo -en "\r\r\r\r\r\r\r\r";
+	read -p "choose one of the options [1-${MAX_DATE_SELECTION_NUMBER}]: " KEY;
+	[[ $KEY =~ ^[0-9]+$ ]] && [ "$KEY" -ge 1 ] && [ "$KEY" -le $MAX_DATE_SELECTION_NUMBER ] || waitingDateSelection;
+	DATETIME_DIR="${LISTDATEDIR[$(($KEY - 1))]}"
+}
+
+function confirmAction()
+{
+	TITLE="$1"
+	read -p "${TITLE} [y/n] " CONFIRM;
+	[[ "$CONFIRM" =~ ^y|Y|n|N$ ]] || confirmAction "$TITLE";
+	if [[ "$CONFIRM" =~ ^y|Y$ ]]; then
+		return 0;
+	else
+		return 1;
+	fi
+}
+
+
+################################################
+#                     RUN                      #
+################################################
+
+if [ $# -lt 2 ]
+then
+	echo $"Usage: $SCRIPTNAME <date> <db>";
+	echo -e "\nParameters:";
+	echo -e "\t* date:  date and time of recovery";
+	echo -e "\t* db:    database";
+	echo -e "";
+	exit 2;
+else
+	LISTDATEDIR=(`find $BACKUP_DIR/* -type d -name "$1*" -printf '%f\n'`);
+	DB_NAME="$2";
+	DB_RESTORE="$3";
+
+	[ -z "$DB_RESTORE" ] && DB_RESTORE="$DB_NAME";
+
+	if [ -z "$LISTDATEDIR" ]; then
+		echo "no backups for \`$1\` does not exist!";
+		exit 3;
+	fi
+
+	if [ ! -z "${LISTDATEDIR[1]}" ]; then
+		outDateSelection
+		waitingDateSelection
+	else
+		DATETIME_DIR="${LISTDATEDIR[0]}"; 
+	fi
+
+	if [ ! -f ${BACKUP_DIR}/${DATETIME_DIR}/${DB_NAME}".sql.dump" ]; then
+		echo -e "backups for the database \`$DB_NAME\` does not exist in \`${DATETIME_DIR}\`";
+		exit 3;
+	fi
+
+	if [ "${DB_NAME}" != "${DB_RESTORE}" ]; then
+		confirmAction "you really want to make a copy of the database danih \`$DB_NAME\` to \`$DB_RESTORE\` for \`$DATETIME_DIR\`" && echo "start:" && runRestore;
+	else
+		confirmAction "you really want to restore the \`$DB_RESTORE\` database on \`$DATETIME_DIR\`" && echo "start:" && runRestore;
+	fi
+fi
