@@ -16,7 +16,10 @@ SCRIPTNAME=`basename $0`;
 DIR=$(dirname "$(readlink -e "$0")");
 CONF_FILE="$DIR/config/pgsql.conf";
 
-######################################
+
+################################################
+#               Initializations                #
+################################################
 
 # load config
 if [ ! -f "$CONF_FILE" ]; then
@@ -26,17 +29,13 @@ else
 	source $CONF_FILE;
 fi
 
-######################################
 
-
-
-######################################
-
-PG_OPTIONS='';
+[ -z "$PG_OPTIONS" ] && PG_OPTIONS='';
 [ ! -z "$PG_HOST" ] && PG_OPTIONS=$PG_OPTIONS" -h$PG_HOST";
 [ ! -z "$PG_USER" ] && PG_OPTIONS=$PG_OPTIONS" -U$PG_USER";
 
-######################################
+
+################################################
 
 function sendEmail()
 {
@@ -224,6 +223,9 @@ function perform_backups_one()
 }
 
 
+################################################
+#                     RUN                      #
+################################################
 
 case "$1" in
 	all)
@@ -245,7 +247,7 @@ case "$1" in
 		fi
 	;;
 	*)
-	echo $"Usage: $0 {all|db 'database name'}"
+	echo $"Usage: $SCRIPTNAME {all|list|db 'database name'}"
 	exit 2
 esac
 
