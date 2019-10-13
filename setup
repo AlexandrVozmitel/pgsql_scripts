@@ -1,0 +1,91 @@
+#!/bin/bash
+
+#==============================================================================
+#title          : PostgreSQL DataBase Backup
+#description    :
+#author         :AlexandrVozmitel
+#link           :
+#date           :20191013
+#version        :0.0.1
+#usage          :script/install
+#notes          :
+#==============================================================================
+
+
+SCRIPTNAME=`basename $0`;
+DIR=$(dirname "$(readlink -e "$0")");
+CONF_FILE="$DIR/config/pgsql.conf";
+
+
+ALIAS_FILE="$DIR/.bash/alias";
+COMPLETION_FILE="$DIR/.bash/completion";
+
+
+if ! mkdir -m 700 -p "$DIR/.bash"; then
+	echo "Cannot create directory in \`$DIR/.bash\`. Go and fix it!" 1>&2;
+	exit 1;
+fi;
+
+chmod 700 "$DIR/pgsql_backup";
+chmod 700 "$DIR/pgsql_restore";
+
+
+if ! grep -q ". ${ALIAS_FILE}" ~/.bashrc; then
+	echo "create alias pgsql"
+	echo -e "\nif [ -f ${ALIAS_FILE} ]; then\n\t. ${ALIAS_FILE}\nfi\n" >> ~/.bashrc;
+fi
+
+$(cat <<EOF > $ALIAS_FILE
+alias pgsql_backup='$DIR/pgsql_backup';
+alias pgsql_restore='$DIR/pgsql_restore';
+EOF
+)
+
+if ! grep -q ". ${COMPLETION_FILE}" ~/.bashrc; then
+	echo "create completion pgsql"
+	echo -e "\nif [ -f ${COMPLETION_FILE} ]; then\n\t. ${COMPLETION_FILE}\nfi\n" >> ~/.bashrc;
+fi
+
+
+$(cat <<EOF > $COMPLETION_FILE
+__pgsql_backup()
+{
+	local cur=\${COMP_WORDS[COMP_CWORD]}
+	if [ -f "$CONF_FILE" ]; then
+		source $CONF_FILE;
+		if [ "\$COMP_CWORD" -eq 1 ]; then
+			COMPREPLY=( \$(compgen -W "all list db" -- \$cur) );
+		else
+			COMPREPLY=();
+		fi
+	else
+		COMPREPLY=();
+	fi
+}
+
+complete -F __pgsql_backup pgsql_backup
+
+__pgsql_restore()
+{
+	local cur=\${COMP_WORDS[COMP_CWORD]}
+	if [ -f "$CONF_FILE" ]; then
+		source $CONF_FILE;
+		if [ "\$COMP_CWORD" -eq 1 ]; then
+			PROJECTS=\$(cd \${BACKUP_DIR} && ls -d *);
+			COMPREPLY=( \$(compgen -W "\${PROJECTS}" -- \$cur) );
+		elif  [ "\$COMP_CWORD" -eq 2 ]; then
+			PROJECTS=\$(cd \${BACKUP_DIR}/\${COMP_WORDS[1]}*/ && ls -f *.sql.dump | sed 's/\.sql\.dump//');
+			COMPREPLY=( \$(compgen -W "\${PROJECTS}" -- \$cur) );
+		else
+			COMPREPLY=();
+		fi
+	else
+		COMPREPLY=();
+	fi
+}
+
+complete -F __pgsql_restore pgsql_restore
+EOF
+)
+
+echo "You need to re-login or reload in .bashrc (\`source ~/.bashrc\`)";
