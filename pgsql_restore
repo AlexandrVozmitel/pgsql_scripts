@@ -53,7 +53,7 @@ function as_user() {
 
 function runRestore()
 {
-	if [ as_user "as_user \"psql $PG_OPTIONS -At -c \"select datname from pg_database where datname != 'postgres' and datname = '$DB_RESTORE';\"\"" ]; then
+	if [ ! -z "as_user \"psql $PG_OPTIONS -At -c \"select datname from pg_database where datname != 'postgres' and datname = '$DB_RESTORE';\"\"" ]; then
 		as_user "dropdb $PG_OPTIONS $DB_RESTORE;";
 	fi
 	as_user "createdb $PG_OPTIONS $DB_RESTORE;";
