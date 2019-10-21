@@ -75,13 +75,13 @@ function as_user() {
 
 function perform_backups_all()
 {
-	SUFFIX="-all"
+	SUFFIX="all"
 
 	if [ "$IS_DELETE_OLD_BACKUPS_ALL" == true ] && [[ $DAYS_TO_KEEP_ALL =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_ALL" -ge 1 ]; then
 		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_ALL -name "*-${SUFFIX}" -exec rm -rf '{}' ';'
 	fi
 
-	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
 
@@ -133,13 +133,13 @@ function perform_backups_all()
 
 function perform_backups_list()
 {
-	SUFFIX="-list"
+	SUFFIX="list"
 
 	if [ "$IS_DELETE_OLD_BACKUPS_LIST" == true ] && [[ $DAYS_TO_KEEP_LIST =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_LIST" -ge 1 ]; then
 		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_LIST -name "*-${SUFFIX}" -exec rm -rf '{}' ';'
 	fi
 
-	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
 
@@ -188,13 +188,13 @@ function perform_backups_list()
 function perform_backups_one()
 {
 	DATABASE=$1
-	SUFFIX="-database"
+	SUFFIX="database"
 
 	if [ "$IS_DELETE_OLD_BACKUPS_DB" == true ] && [[ $DAYS_TO_KEEP_DB =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_DB" -ge 1 ]; then
 		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_DB -name "*-${SUFFIX}" -exec rm -rf '{}' ';'
 	fi
 
-	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`$SUFFIX/"
+	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
 
