@@ -78,7 +78,9 @@ function perform_backups_all()
 	SUFFIX="all"
 
 	if [ "$IS_DELETE_OLD_BACKUPS_ALL" == true ] && [[ $DAYS_TO_KEEP_ALL =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_ALL" -ge 1 ]; then
-		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_ALL -name "*-${SUFFIX}" -exec rm -rf '{}' ';'
+		echo -e "search and delete obsolete backups:";
+		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_ALL -name "*-${SUFFIX}" -exec bash -c 'echo -e "	delete: {}" && rm -rf {}' ';'
+		echo -e "";
 	fi
 
 	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
@@ -136,7 +138,9 @@ function perform_backups_list()
 	SUFFIX="list"
 
 	if [ "$IS_DELETE_OLD_BACKUPS_LIST" == true ] && [[ $DAYS_TO_KEEP_LIST =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_LIST" -ge 1 ]; then
-		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_LIST -name "*-${SUFFIX}" -exec rm -rf '{}' ';'
+		echo -e "search and delete obsolete backups:";
+		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_LIST -name "*-${SUFFIX}" -exec bash -c 'echo -e "	delete: {}" && rm -rf {}' ';'
+		echo -e "";
 	fi
 
 	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
@@ -191,7 +195,9 @@ function perform_backups_one()
 	SUFFIX="database"
 
 	if [ "$IS_DELETE_OLD_BACKUPS_DB" == true ] && [[ $DAYS_TO_KEEP_DB =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_DB" -ge 1 ]; then
-		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_DB -name "*-${SUFFIX}" -exec rm -rf '{}' ';'
+		echo -e "search and delete obsolete backups:";
+		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_DB -name "*-${SUFFIX}" -exec bash -c 'echo -e "	delete: {}" && rm -rf {}' ';'
+		echo -e "";
 	fi
 
 	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
