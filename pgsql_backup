@@ -60,7 +60,7 @@ function sendEmail()
 
 	rm -f /tmp/tmpmail;
 	echo -e "From: \"$HOSTNAME\" <$NOTIFICATION_EMAIL_FROM>\nTo: $EMAIL_TO\nSubject: $D_SUBJECT\nMIME-Version: 1.0\nContent-Type: text/plain;charset=utf-8\n\n$D_BODY" > /tmp/tmpmail;
-	OPTIONS="--url $NOTIFICATION_EMAIL_SMTP --ssl-reqd --mail-from $NOTIFICATION_EMAIL_FROM $RCPT --upload-file /tmp/tmpmail --user $NOTIFICATION_EMAIL_USER:$NOTIFICATION_EMAIL_PASS --insecure -v"
+	OPTIONS="--url $NOTIFICATION_EMAIL_SMTP --ssl-reqd --mail-from $NOTIFICATION_EMAIL_FROM $RCPT --upload-file /tmp/tmpmail --user $NOTIFICATION_EMAIL_USER:$NOTIFICATION_EMAIL_PASS --insecure --progress-bar"
 	`curl $OPTIONS`;
 }
 
@@ -79,7 +79,7 @@ function perform_backups_all()
 
 	if [ "$IS_DELETE_OLD_BACKUPS_ALL" == true ] && [[ $DAYS_TO_KEEP_ALL =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_ALL" -ge 1 ]; then
 		echo -e "search and delete obsolete backups:";
-		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_ALL -name "*-${SUFFIX}" -exec bash -c 'echo -e "	delete: {}" && rm -rf {}' ';'
+		find $BACKUP_DIR/ -maxdepth 1 -mtime +$DAYS_TO_KEEP_ALL -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && rm -rf {}' ';'
 		echo -e "";
 	fi
 
@@ -120,9 +120,8 @@ function perform_backups_all()
 	echo -e "\n------------------------------------------------\n"
 
 
-	[ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] && rm -fr ${FINAL_BACKUP_DIR};
-
 	if [ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] ; then
+		rm -fr ${FINAL_BACKUP_DIR};
 		echo -e "\nDataBase backups error" 1>&2;
 	else
 		echo -e "\nAll database backups complete!";
@@ -139,7 +138,7 @@ function perform_backups_list()
 
 	if [ "$IS_DELETE_OLD_BACKUPS_LIST" == true ] && [[ $DAYS_TO_KEEP_LIST =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_LIST" -ge 1 ]; then
 		echo -e "search and delete obsolete backups:";
-		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_LIST -name "*-${SUFFIX}" -exec bash -c 'echo -e "	delete: {}" && rm -rf {}' ';'
+		find $BACKUP_DIR/ -maxdepth 1 -mtime +$DAYS_TO_KEEP_LIST -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && rm -rf {}' ';'
 		echo -e "";
 	fi
 
@@ -176,9 +175,9 @@ function perform_backups_list()
 
 	echo -e "\n------------------------------------------------\n"
 
-	[ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] && rm -fr ${FINAL_BACKUP_DIR};
 
 	if [ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] ; then
+		rm -fr ${FINAL_BACKUP_DIR};
 		echo -e "\nDataBase backups error" 1>&2;
 	else
 		echo -e "\nDatabase backups complete!";
@@ -196,7 +195,7 @@ function perform_backups_one()
 
 	if [ "$IS_DELETE_OLD_BACKUPS_DB" == true ] && [[ $DAYS_TO_KEEP_DB =~ ^[0-9]+$ ]] && [ "$DAYS_TO_KEEP_DB" -ge 1 ]; then
 		echo -e "search and delete obsolete backups:";
-		find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP_DB -name "*-${SUFFIX}" -exec bash -c 'echo -e "	delete: {}" && rm -rf {}' ';'
+		find $BACKUP_DIR/ -maxdepth 1 -mtime +$DAYS_TO_KEEP_DB -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && rm -rf {}' ';'
 		echo -e "";
 	fi
 
@@ -228,11 +227,11 @@ function perform_backups_one()
 	ENDTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`";
 	RESULT="${STARTTIME} - ${ENDTTIME}\n$RESULT\n";
 
-	[ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] && rm -fr ${FINAL_BACKUP_DIR};
-
 	echo -e "\n------------------------------------------------\n"
 
+
 	if [ `ls ${FINAL_BACKUP_DIR} | wc -l` -eq 0 ] ; then
+		rm -fr ${FINAL_BACKUP_DIR};
 		echo -e "\nDataBase backups error" 1>&2;
 	else
 		echo -e "\nDatabase backups complete!";
