@@ -83,6 +83,32 @@ function perform_backups_all()
 		echo -e "";
 	fi
 
+
+	MINUTES=`date +%M`
+	if [ `date +%H` -eq 20 ] && [ $MINUTES -ge 0 ] && [ $MINUTES -le 10 ] ;
+	then
+		DAY_OF_WEEK=`date +%u` #1-7 (Monday-Sunday)
+		EXPIRED_DAYS=`expr $((($WEEKS_TO_KEEP_ALL * 7) + 1))`
+
+		if [[ $DAY_OF_WEEK_TO_KEEP_ALL =~ ^[0-9]+$ ]] && [ "$DAY_OF_WEEK_TO_KEEP_ALL" -ge 1 ] && [ $DAY_OF_WEEK = $DAY_OF_WEEK_TO_KEEP_ALL ];
+		then
+			# WEEKLY BACKUPS
+			SUFFIX="$SUFFIX-weekly"
+			# Delete all expired weekly directories
+			find $BACKUP_DIR -maxdepth 1 -mtime +$EXPIRED_DAYS -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && chattr -i {}/* && rm -rf {}' ';'
+			echo -e "";
+		elif [[ $DAILY_DAYS_TO_KEEP_ALL =~ ^[0-9]+$ ]] && [ "$DAILY_DAYS_TO_KEEP_ALL" -ge 2 ];
+		then
+			# DAILY BACKUPS
+			SUFFIX="$SUFFIX-daily"
+			# Delete all expired daily directories
+			find $BACKUP_DIR -maxdepth 1 -mtime +$DAILY_DAYS_TO_KEEP_ALL -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && chattr -i {}/* && rm -rf {}' ';'
+			echo -e "";
+		fi
+
+	fi
+
+
 	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
@@ -142,6 +168,32 @@ function perform_backups_list()
 		echo -e "";
 	fi
 
+
+	MINUTES=`date +%M`
+	if [ `date +%H` -eq 20 ] && [ $MINUTES -ge 0 ] && [ $MINUTES -le 10 ] ;
+	then
+		DAY_OF_WEEK=`date +%u` #1-7 (Monday-Sunday)
+		EXPIRED_DAYS=`expr $((($WEEKS_TO_KEEP_LIST * 7) + 1))`
+
+		if [[ $DAY_OF_WEEK_TO_KEEP_LIST =~ ^[0-9]+$ ]] && [ "$DAY_OF_WEEK_TO_KEEP_LIST" -ge 1 ] && [ $DAY_OF_WEEK = $DAY_OF_WEEK_TO_KEEP_LIST ];
+		then
+			# WEEKLY BACKUPS
+			SUFFIX="$SUFFIX-weekly"
+			# Delete all expired weekly directories
+			find $BACKUP_DIR -maxdepth 1 -mtime +$EXPIRED_DAYS -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && chattr -i {}/* && rm -rf {}' ';'
+			echo -e "";
+		elif [[ $DAILY_DAYS_TO_KEEP_LIST =~ ^[0-9]+$ ]] && [ "$DAILY_DAYS_TO_KEEP_LIST" -ge 2 ];
+		then
+			# DAILY BACKUPS
+			SUFFIX="$SUFFIX-daily"
+			# Delete all expired daily directories
+			find $BACKUP_DIR -maxdepth 1 -mtime +$DAILY_DAYS_TO_KEEP_LIST -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && chattr -i {}/* && rm -rf {}' ';'
+			echo -e "";
+		fi
+
+	fi
+
+
 	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
 	RESULT=""
@@ -198,6 +250,32 @@ function perform_backups_one()
 		find $BACKUP_DIR/ -maxdepth 1 -mtime +$DAYS_TO_KEEP_DB -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && rm -rf {}' ';'
 		echo -e "";
 	fi
+
+
+	MINUTES=`date +%M`
+	if [ `date +%H` -eq 20 ] && [ $MINUTES -ge 0 ] && [ $MINUTES -le 10 ] ;
+	then
+		DAY_OF_WEEK=`date +%u` #1-7 (Monday-Sunday)
+		EXPIRED_DAYS=`expr $((($WEEKS_TO_KEEP_DB * 7) + 1))`
+
+		if [[ $DAY_OF_WEEK_TO_KEEP_DB =~ ^[0-9]+$ ]] && [ "$DAY_OF_WEEK_TO_KEEP_DB" -ge 1 ] && [ $DAY_OF_WEEK = $DAY_OF_WEEK_TO_KEEP_DB ];
+		then
+			# WEEKLY BACKUPS
+			SUFFIX="$SUFFIX-weekly"
+			# Delete all expired weekly directories
+			find $BACKUP_DIR -maxdepth 1 -mtime +$EXPIRED_DAYS -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && chattr -i {}/* && rm -rf {}' ';'
+			echo -e "";
+		elif [[ $DAILY_DAYS_TO_KEEP_DB =~ ^[0-9]+$ ]] && [ "$DAILY_DAYS_TO_KEEP_DB" -ge 2 ];
+		then
+			# DAILY BACKUPS
+			SUFFIX="$SUFFIX-daily"
+			# Delete all expired daily directories
+			find $BACKUP_DIR -maxdepth 1 -mtime +$DAILY_DAYS_TO_KEEP_DB -name "*-${SUFFIX}" -exec bash -c 'echo -e "\tdelete: {}" && chattr -i {}/* && rm -rf {}' ';'
+			echo -e "";
+		fi
+
+	fi
+
 
 	FINAL_BACKUP_DIR=$BACKUP_DIR"/`date +\%Y-\%m-\%d_\%Hh\%Mm`-$SUFFIX/"
 	STARTTIME="`date +\%Y-\%m-\%d_\%Hh\%Mm\%Ss`"
