@@ -89,3 +89,4 @@ EOF
 )
 
 echo "You need to re-login or reload in .bashrc (\`source ~/.bashrc\`)";
+
