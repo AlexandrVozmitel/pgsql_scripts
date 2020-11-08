@@ -1,2 +1,4 @@
 config/pgsql.conf
 .bash/
+
+.idea/
